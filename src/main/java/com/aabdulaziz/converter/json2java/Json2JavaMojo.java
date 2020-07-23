@@ -8,9 +8,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -59,6 +60,9 @@ public class Json2JavaMojo extends AbstractMojo {
 
 	@Parameter(required = true, readonly = true)
 	private String outputPath;
+	
+	@Parameter(required = false, defaultValue = "false", readonly = true)
+	private boolean ordered;
 
 	private static final String JSON_EXTENSION = ".json";
 
@@ -105,7 +109,7 @@ public class Json2JavaMojo extends AbstractMojo {
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 		}
-		Set<String> fieldSet = new HashSet<>();
+		Set<String> fieldSet = ordered ? new TreeSet<>(String::compareTo) : new LinkedHashSet<>();
 		rootNode.elements().forEachRemaining(field -> {
 			fieldSet.add(field.get("code").toString().replace("\"", ""));
 		});
