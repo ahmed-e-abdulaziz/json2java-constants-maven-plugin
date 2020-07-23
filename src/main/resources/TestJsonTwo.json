@@ -1,0 +1,18 @@
+[
+	{
+		"code": "FIRST_CODE",
+		"unrequiredfield": "fieldValue"
+	},
+	{
+		"code": "SECOND_CODE",
+		"unrequiredfield": "fieldValue"
+	},
+	{
+		"code": "THIRD_CODE",
+		"unrequiredfield": "fieldValue"
+	},
+	{
+		"code": "FOURTH_CODE",
+		"unrequiredfield": "fieldValue"
+	}
+]
