@@ -1,7 +1,7 @@
 package com.aabdulaziz.converter.json2java;
 
+import java.io.File;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,11 +9,14 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.apache.maven.model.Resource;
 
 /*
  * Copyright 2001-2005 The Apache Software Foundation.
@@ -49,31 +52,35 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Mojo(name = "json2java", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
 public class Json2JavaMojo extends AbstractMojo {
 
-	@Parameter(required = true, readonly = true)
-	private String resourcesPath;
+	@Parameter(readonly = true, defaultValue = "${project.build.directory}")
+	private String targetFolder;
 
 	@Parameter(required = true, readonly = true)
-	private String constantName;
+	private String constantKey;
 
 	@Parameter(required = true, readonly = true)
 	private String packageName;
 
 	@Parameter(required = true, readonly = true)
 	private String outputPath;
-	
+
 	@Parameter(required = false, defaultValue = "false", readonly = true)
 	private boolean ordered;
+
+	@Parameter(defaultValue = "${project.resources}", required = true, readonly = true)
+	private List<Resource> resources;
 
 	private static final String JSON_EXTENSION = ".json";
 
 	public void execute() throws MojoExecutionException {
+		String generationPath = separatorsToSystem(targetFolder + File.separator + outputPath);
+		new File(generationPath).mkdirs();
 		Map<String, String> classAndJsonMap = jsonFileToClassAndJsonStringMap();
-
 		classAndJsonMap.forEach((className, json) -> {
 			String classString = createClassString(className, json);
 			try {
-				Files.write(Paths.get(outputPath + "/" + className + ".java"),
-						classString.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE,
+				Path javaClassPath = Paths.get(generationPath + File.separator + className + ".java");
+				Files.write(javaClassPath, classString.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE,
 						StandardOpenOption.TRUNCATE_EXISTING);
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -83,7 +90,7 @@ public class Json2JavaMojo extends AbstractMojo {
 
 	private Map<String, String> jsonFileToClassAndJsonStringMap() {
 		Map<String, String> classAndJsonStringMap = new HashMap<>();
-		try (Stream<Path> paths = Files.walk(Paths.get(Json2JavaMojo.class.getResource(resourcesPath).toURI()))) {
+		try (Stream<Path> paths = Files.walk(Paths.get(resources.get(0).getDirectory()))) {
 			paths.filter(p -> p.toString().endsWith(JSON_EXTENSION)).forEach(p -> {
 				try {
 					// The filename, used as the class name
@@ -93,7 +100,7 @@ public class Json2JavaMojo extends AbstractMojo {
 					e.printStackTrace();
 				}
 			});
-		} catch (IOException | URISyntaxException e) {
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		return classAndJsonStringMap;
@@ -111,8 +118,20 @@ public class Json2JavaMojo extends AbstractMojo {
 		}
 		Set<String> fieldSet = ordered ? new TreeSet<>(String::compareTo) : new LinkedHashSet<>();
 		rootNode.elements().forEachRemaining(field -> {
-			fieldSet.add(field.get("code").toString().replace("\"", ""));
+			fieldSet.add(field.get(constantKey).toString().replace("\"", ""));
 		});
 		return ClassGenerator.buildConstantsClass(packageName, className, fieldSet);
+	}
+
+	private String separatorsToSystem(String res) {
+		if (res == null)
+			return null;
+		if (File.separatorChar == '\\') {
+			// From Windows to Linux/Mac
+			return res.replace('/', File.separatorChar);
+		} else {
+			// From Linux/Mac to Windows
+			return res.replace('\\', File.separatorChar);
+		}
 	}
 }
